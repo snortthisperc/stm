@@ -83,7 +83,7 @@ local function AdminPredictiveMonitor(C)
     closeBtn.Paint = function(self, w, h)
         local col = self.hovered and C.Danger or Color(255, 255, 255, 30)
         draw.RoundedBox(8, 0, 0, w, h, col)
-        draw.SimpleText("×", "StockMarket_SubtitleFont", w/2, h/2, color_white, TEXT_ALIGN_CENTER, TEXT_ALIGN_CENTER)
+           draw.SimpleText("X", "StockMarket_SubtitleFont", w/2, h/2, color_white, TEXT_ALIGN_CENTER, TEXT_ALIGN_CENTER)
     end
     closeBtn.OnCursorEntered = function(self) self.hovered = true end
     closeBtn.OnCursorExited = function(self) self.hovered = false end
@@ -150,7 +150,7 @@ local function AdminPredictiveMonitor(C)
         return btn
     end
 
-    ModernButton(quickActions, "Monitor All Active", "⊕", function()
+    ModernButton(quickActions, "Monitor All Active", "+", function()
         if StockMarket.UI.__LastAdminState then
             for _, sectorData in pairs(StockMarket.UI.__LastAdminState) do
                 for _, tk in ipairs(sectorData.tickers or {}) do
@@ -162,7 +162,7 @@ local function AdminPredictiveMonitor(C)
         end
     end, C.Primary)
 
-    ModernButton(quickActions, "Clear All Cards", "⊗", function()
+    ModernButton(quickActions, "Clear All Cards", "-", function()
         if fr.cards then
             for key, card in pairs(fr.cards) do
                 if IsValid(card) then
@@ -231,7 +231,7 @@ local function AdminPredictiveMonitor(C)
             draw.SimpleText(displayText, "StockMarket_TextFont", 10, h/2, C.TextPrimary, TEXT_ALIGN_LEFT, TEXT_ALIGN_CENTER)
             
             -- Dropdown arrow
-            draw.SimpleText("▼", "StockMarket_SmallFont", w - 10, h/2, C.TextSecondary, TEXT_ALIGN_RIGHT, TEXT_ALIGN_CENTER)
+            draw.SimpleText("v", "StockMarket_SmallFont", w - 10, h/2, C.TextSecondary, TEXT_ALIGN_RIGHT, TEXT_ALIGN_CENTER)
         end
         
         return combo
@@ -330,7 +330,7 @@ local function AdminPredictiveMonitor(C)
     resetBtn.Paint = function(self, w, h)
         local bgCol = self.hovered and Color(255, 255, 255, 30) or Color(255, 255, 255, 10)
         draw.RoundedBox(6, 0, 0, w, h, bgCol)
-        draw.SimpleText("⟲ Reset All", "StockMarket_SmallFont", w/2, h/2, C.TextPrimary, TEXT_ALIGN_CENTER, TEXT_ALIGN_CENTER)
+        draw.SimpleText("R Reset All", "StockMarket_SmallFont", w/2, h/2, C.TextPrimary, TEXT_ALIGN_CENTER, TEXT_ALIGN_CENTER)
     end
     
     resetBtn.OnCursorEntered = function(self) self.hovered = true end
@@ -484,7 +484,7 @@ local function AdminPredictiveMonitor(C)
             return btn
         end
 
-        card._btnClose = ModernButton(btnContainer, "×", "Remove", function()
+        card._btnClose = ModernButton(btnContainer, "X", "Remove", function()
             if IsValid(card) then
                 grid:RemoveItem(card)
                 fr.cards[key] = nil
@@ -492,7 +492,7 @@ local function AdminPredictiveMonitor(C)
             end
         end, card:GetWide() - 44)
 
-        card._btnPop = ModernButton(btnContainer, "⤢", "Popout", function()
+        card._btnPop = ModernButton(btnContainer, "^", "Popout", function()
             local pop = vgui.Create("DFrame")
             pop:SetSize(math.min(ScrW() * 0.75, 1000), math.min(ScrH() * 0.75, 700))
             pop:Center()
