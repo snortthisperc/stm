@@ -21,7 +21,8 @@ function StockMarket.UI.Chart:Create(parent)
 
     chart.Paint = function(self, w, h)
         -- Background
-        draw.RoundedBox(8, 0, 0, w, h, StockMarket.UI.Colors.BackgroundLight)
+        surface.SetDrawColor(StockMarket.UI.Colors.BackgroundLight)
+        surface.DrawRect(0, 0, w, h)
 
         -- Define paddings FIRST (so we can use them below)
         local paddingLeft  = 70
