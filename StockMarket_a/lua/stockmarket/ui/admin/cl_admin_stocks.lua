@@ -1,5 +1,5 @@
 -- ========================================
--- Admin Panel - Stocks/Category Manager (Auto-size sections + Stat Pills)
+-- Admin Panel - Stocks/Category Manager (Complete with Modern Performance Monitor)
 -- ========================================
 
 if not CLIENT then return end
@@ -39,6 +39,10 @@ local function SmallButton(parent, label, C, onClick, w)
     return b
 end
 
+-- ========================================
+-- MODERN PERFORMANCE MONITOR
+-- ========================================
+
 local function AdminPredictiveMonitor(C)
     if IsValid(StockMarket.UI.AdminMonitor) then
         local fr = StockMarket.UI.AdminMonitor
@@ -47,268 +51,350 @@ local function AdminPredictiveMonitor(C)
     end
 
     local fr = vgui.Create("DFrame")
-    fr:SetSize(math.min(ScrW() * 0.82, 1320), math.min(ScrH() * 0.85, 820))
+    fr:SetSize(math.min(ScrW() * 0.9, 1600), math.min(ScrH() * 0.9, 1000))
     fr:Center()
     fr:SetTitle("")
     fr:MakePopup()
     fr:SetSizable(true)
+    fr:SetMinWidth(1000)
+    fr:SetMinHeight(600)
     StockMarket.UI.AdminMonitor = fr
 
-    -- Frame paint: clean, single-pass
+    -- Modern frame design
     fr.Paint = function(self, w, h)
-        surface.SetDrawColor(C.Background or Color(25,28,35))
-        surface.DrawRect(0, 0, w, h)
-        draw.RoundedBox(8, 8, 8, w - 16, 52, C.BackgroundLight or Color(32,36,45))
-        draw.SimpleText("Performance Monitor", "StockMarket_SubtitleFont", 24, 34, C.TextPrimary or color_white, TEXT_ALIGN_LEFT, TEXT_ALIGN_CENTER)
+        -- Main background
+        draw.RoundedBox(12, 0, 0, w, h, C.Background)
+        
+        -- Header with gradient effect
+        draw.RoundedBox(12, 0, 0, w, 80, Color(32, 36, 45))
+        draw.RoundedBoxEx(12, 0, 0, w, 80, C.BackgroundLight, true, true, false, false)
+        
+        -- Title
+        draw.SimpleText("Performance Monitor", "StockMarket_TitleFont", 24, 28, C.Primary, TEXT_ALIGN_LEFT, TEXT_ALIGN_TOP)
+        draw.SimpleText("Real-time stock prediction and analysis", "StockMarket_SmallFont", 24, 54, C.TextSecondary, TEXT_ALIGN_LEFT, TEXT_ALIGN_TOP)
     end
 
-    -- Toolbar
-    local bar = vgui.Create("DPanel", fr)
-    bar:Dock(TOP)
-    bar:SetTall(56)
-    bar:DockMargin(8, 64, 8, 6)
-    bar.Paint = function(self, w, h)
-        draw.RoundedBox(8, 0, 0, w, h, C.BackgroundLight)
+    -- Close button
+    local closeBtn = vgui.Create("DButton", fr)
+    closeBtn:SetSize(40, 40)
+    closeBtn:SetPos(fr:GetWide() - 50, 20)
+    closeBtn:SetText("")
+    closeBtn.hovered = false
+    closeBtn.Paint = function(self, w, h)
+        local col = self.hovered and C.Danger or Color(255, 255, 255, 30)
+        draw.RoundedBox(8, 0, 0, w, h, col)
+        draw.SimpleText("×", "StockMarket_SubtitleFont", w/2, h/2, color_white, TEXT_ALIGN_CENTER, TEXT_ALIGN_CENTER)
     end
-
-    local ctrl = vgui.Create("Panel", bar)
-    ctrl:Dock(RIGHT)
-    ctrl:SetWide(760)
-    ctrl:DockMargin(8, 8, 8, 8)
-    ctrl.Paint = nil
-
-    -- Helper: fully hide DComboBox internal text area so no duplicate text
-    local function SuppressComboInternalText(combo, fallbackText)
-        combo:SetText("")
-        combo:SetTextColor(Color(0,0,0,0))
-        combo:SetFGColor(Color(0,0,0,0))
-        timer.Simple(0, function()
-            if not IsValid(combo) then return end
-            local txt = combo.GetTextArea and combo:GetTextArea() or combo.TextEntry
-            if IsValid(txt) then
-                txt:SetText("")
-                txt:SetTextColor(Color(0,0,0,0))
-                txt:SetCursorColor(Color(0,0,0,0))
-                txt.Paint = function() end
-            end
-        end)
-        combo._displayValue = fallbackText
-        combo.Paint = function(self, w, h)
-            draw.RoundedBox(6, 0, 0, w, h, C.BackgroundDark or Color(18,21,28))
-            draw.RoundedBox(6, 1, 1, w-2, h-2, C.Background or Color(25,28,35))
-            draw.SimpleText(self._displayValue or "", "StockMarket_TextFont", 10, math.floor((h-16)/2), C.TextPrimary, TEXT_ALIGN_LEFT, TEXT_ALIGN_TOP)
-            -- down arrow
-            surface.SetFont("StockMarket_SmallFont")
-            local glyph = "▼"
-            local _, th = surface.GetTextSize(glyph)
-            draw.SimpleText(glyph, "StockMarket_SmallFont", w - 10, math.floor((h - th) / 2), C.TextSecondary, TEXT_ALIGN_RIGHT, TEXT_ALIGN_TOP)
-        end
-        -- Keep value synced
-        local baseOnSelect = combo.OnSelect
-        combo.OnSelect = function(self, index, value, data)
-            self._displayValue = tostring(value or "")
-            if baseOnSelect then baseOnSelect(self, index, value, data) end
+    closeBtn.OnCursorEntered = function(self) self.hovered = true end
+    closeBtn.OnCursorExited = function(self) self.hovered = false end
+    closeBtn.DoClick = function() fr:Close() end
+    
+    fr.OnSizeChanged = function()
+        if IsValid(closeBtn) then
+            closeBtn:SetPos(fr:GetWide() - 50, 20)
         end
     end
 
-    -- Horizon selector
-    local horizon = vgui.Create("DComboBox", ctrl)
-    horizon:Dock(RIGHT)
-    horizon:SetWide(120)
-    horizon:AddChoice("30m", 30, true)
-    horizon:AddChoice("1h", 60)
-    horizon:AddChoice("4h", 240)
-    horizon:AddChoice("24h", 1440)
-    SuppressComboInternalText(horizon, "30m")
-
-    -- Step selector
-    local step = vgui.Create("DComboBox", ctrl)
-    step:Dock(RIGHT)
-    step:SetWide(110)
-    step:DockMargin(8, 0, 0, 0)
-    step:AddChoice("1m", 60)
-    step:AddChoice("2m", 120, true)
-    step:AddChoice("5m", 300)
-    SuppressComboInternalText(step, "2m")
-
-    local function getHorizonMins()
-        local id = horizon:GetSelectedID() or 1
-        return tonumber(horizon:GetOptionData(id)) or 30
-    end
-    local function getStepSecs()
-        local id = step:GetSelectedID() or 2
-        return tonumber(step:GetOptionData(id)) or 120
+    -- Control panel (modern design)
+    local controlPanel = vgui.Create("DPanel", fr)
+    controlPanel:Dock(TOP)
+    controlPanel:SetTall(100)
+    controlPanel:DockMargin(16, 96, 16, 12)
+    controlPanel.Paint = function(self, w, h)
+        draw.RoundedBox(10, 0, 0, w, h, C.BackgroundLight)
+        
+        -- Section dividers
+        surface.SetDrawColor(255, 255, 255, 10)
+        surface.DrawRect(w * 0.25, 12, 1, h - 24)
+        surface.DrawRect(w * 0.75, 12, 1, h - 24)
     end
 
-    -- Skip buttons (no duplicate paint)
-    local function addSkip(label, mins)
-        local b = vgui.Create("DButton", ctrl)
-        b:Dock(RIGHT)
-        b:SetWide(66)
-        b:DockMargin(6, 0, 0, 0)
-        b:SetText("")
-        local hov = false
-        b.Paint = function(self, w, h)
-            local col = hov and C.PrimaryHover or C.Primary
-            draw.RoundedBox(6, 0, 0, w, h, col)
-            draw.SimpleText(label, "StockMarket_ButtonFont", w/2, h/2, color_white, TEXT_ALIGN_CENTER, TEXT_ALIGN_CENTER)
-        end
-        b.OnCursorEntered = function() hov = true end
-        b.OnCursorExited  = function() hov = false end
-        b.DoClick = function()
-            if not fr.cards then return end
-            for _, card in pairs(fr.cards) do
-                if IsValid(card) and card._skip then card:_skip(mins) end
+    -- Left section: Quick Actions
+    local quickActions = vgui.Create("DPanel", controlPanel)
+    quickActions:Dock(LEFT)
+    quickActions:SetWide(controlPanel:GetWide() * 0.25 - 8)
+    quickActions:DockMargin(12, 12, 12, 12)
+    quickActions.Paint = nil
+
+    local sectionLabel1 = vgui.Create("DLabel", quickActions)
+    sectionLabel1:Dock(TOP)
+    sectionLabel1:SetTall(20)
+    sectionLabel1:SetFont("StockMarket_SmallFont")
+    sectionLabel1:SetTextColor(C.TextSecondary)
+    sectionLabel1:SetText("QUICK ACTIONS")
+
+    local function ModernButton(parent, text, icon, onClick, color)
+        local btn = vgui.Create("DButton", parent)
+        btn:Dock(TOP)
+        btn:SetTall(28)
+        btn:DockMargin(0, 4, 0, 0)
+        btn:SetText("")
+        btn.hovered = false
+        
+        btn.Paint = function(self, w, h)
+            local bgCol = self.hovered and (color or C.Primary) or Color(255, 255, 255, 15)
+            draw.RoundedBox(6, 0, 0, w, h, bgCol)
+            
+            local textCol = self.hovered and color_white or C.TextPrimary
+            if icon then
+                draw.SimpleText(icon .. " " .. text, "StockMarket_SmallFont", w/2, h/2, textCol, TEXT_ALIGN_CENTER, TEXT_ALIGN_CENTER)
+            else
+                draw.SimpleText(text, "StockMarket_SmallFont", w/2, h/2, textCol, TEXT_ALIGN_CENTER, TEXT_ALIGN_CENTER)
             end
         end
-        return b
-    end
-    addSkip("+5m", 5)
-    addSkip("+30m", 30)
-    addSkip("+2h", 120)
-    addSkip("+1d", 1440)
-
-    -- Reset button
-    local btnReset = vgui.Create("DButton", ctrl)
-    btnReset:Dock(RIGHT)
-    btnReset:SetWide(84)
-    btnReset:DockMargin(8, 0, 0, 0)
-    btnReset:SetText("")
-    local hovR = false
-    btnReset.Paint = function(self, w, h)
-        local base = C.BackgroundDark or Color(20,22,28)
-        local idle = C.Background or Color(25,28,35)
-        draw.RoundedBox(6, 0, 0, w, h, hovR and base or idle)
-        draw.SimpleText("Reset", "StockMarket_ButtonFont", w/2, h/2, C.TextPrimary, TEXT_ALIGN_CENTER, TEXT_ALIGN_CENTER)
-    end
-    btnReset.OnCursorEntered = function() hovR = true end
-    btnReset.OnCursorExited  = function() hovR = false end
-    btnReset.DoClick = function()
-        if not fr.cards then return end
-        for _, card in pairs(fr.cards) do
-            if IsValid(card) and card._refresh then card:_refresh(true) end
-        end
+        
+        btn.OnCursorEntered = function(self) self.hovered = true end
+        btn.OnCursorExited = function(self) self.hovered = false end
+        btn.DoClick = onClick
+        
+        return btn
     end
 
-    -- Add All (Monitor all)
-    local btnAll = vgui.Create("DButton", bar)
-    btnAll:Dock(LEFT)
-    btnAll:SetWide(160)
-    btnAll:DockMargin(8, 8, 0, 8)
-    btnAll:SetText("")
-    local hovA = false
-    btnAll.Paint = function(self, w, h)
-        local col = hovA and C.PrimaryHover or C.Primary
-        draw.RoundedBox(6, 0, 0, w, h, col)
-        draw.SimpleText("Add All Active", "StockMarket_ButtonFont", w/2, h/2, color_white, TEXT_ALIGN_CENTER, TEXT_ALIGN_CENTER)
-    end
-    btnAll.OnCursorEntered = function() hovA = true end
-    btnAll.OnCursorExited  = function() hovA = false end
-    btnAll.DoClick = function()
-        local mon = AdminPredictiveMonitor(C)
+    ModernButton(quickActions, "Monitor All Active", "⊕", function()
         if StockMarket.UI.__LastAdminState then
             for _, sectorData in pairs(StockMarket.UI.__LastAdminState) do
                 for _, tk in ipairs(sectorData.tickers or {}) do
                     if tk.enabled ~= false then
-                        mon:AddTickerCard(tk)
+                        fr:AddTickerCard(tk)
                     end
                 end
             end
-        else
-            net.Start("StockMarket_Admin_GetState"); net.SendToServer()
-            net.Receive("StockMarket_Admin_State", function()
-                local count = net.ReadUInt(16) or 0
-                local state = {}
-                for i = 1, count do
-                    local sKey = net.ReadString()
-                    local sector = {
-                        sectorName = net.ReadString(),
-                        sectorVolatility = net.ReadFloat(),
-                        enabled = net.ReadBool(),
-                        tickers = {}
-                    }
-                    local tCount = net.ReadUInt(16) or 0
-                    for j = 1, tCount do
-                        sector.tickers[j] = {
-                            stockName = net.ReadString(),
-                            stockPrefix = net.ReadString(),
-                            marketStocks = net.ReadUInt(32),
-                            newStockValue = net.ReadFloat(),
-                            minTick = net.ReadFloat(),
-                            maxTick = net.ReadFloat(),
-                            drift = net.ReadFloat(),
-                            volatility = net.ReadFloat(),
-                            stockDifficulty = net.ReadUInt(32),
-                            enabled = net.ReadBool()
-                        }
-                    end
-                    state[sKey] = sector
+        end
+    end, C.Primary)
+
+    ModernButton(quickActions, "Clear All Cards", "⊗", function()
+        if fr.cards then
+            for key, card in pairs(fr.cards) do
+                if IsValid(card) then
+                    card:Remove()
                 end
-                StockMarket.UI.__LastAdminState = state
-                for _, data in pairs(state) do
-                    for _, tk in ipairs(data.tickers or {}) do
-                        mon:AddTickerCard(tk)
+            end
+            fr.cards = {}
+        end
+    end, C.Danger)
+
+    -- Middle section: Prediction Settings
+    local predSettings = vgui.Create("DPanel", controlPanel)
+    predSettings:Dock(FILL)
+    predSettings:DockMargin(12, 12, 12, 12)
+    predSettings.Paint = nil
+
+    local sectionLabel2 = vgui.Create("DLabel", predSettings)
+    sectionLabel2:Dock(TOP)
+    sectionLabel2:SetTall(20)
+    sectionLabel2:SetFont("StockMarket_SmallFont")
+    sectionLabel2:SetTextColor(C.TextSecondary)
+    sectionLabel2:SetText("PREDICTION SETTINGS")
+
+    local settingsRow = vgui.Create("DPanel", predSettings)
+    settingsRow:Dock(TOP)
+    settingsRow:SetTall(32)
+    settingsRow:DockMargin(0, 4, 0, 0)
+    settingsRow.Paint = nil
+
+    -- Helper function for modern combo boxes
+    local function ModernComboBox(parent, label, choices, defaultIdx)
+        local container = vgui.Create("DPanel", parent)
+        container:Dock(LEFT)
+        container:SetWide((parent:GetWide() - 16) / 2)
+        container:DockMargin(0, 0, 8, 0)
+        container.Paint = nil
+
+        local lbl = vgui.Create("DLabel", container)
+        lbl:Dock(LEFT)
+        lbl:SetWide(80)
+        lbl:SetFont("StockMarket_SmallFont")
+        lbl:SetTextColor(C.TextSecondary)
+        lbl:SetText(label)
+        lbl:SetContentAlignment(4)
+
+        local combo = vgui.Create("DComboBox", container)
+        combo:Dock(FILL)
+        combo:SetFont("StockMarket_TextFont")
+        
+        for i, choice in ipairs(choices) do
+            combo:AddChoice(choice.label, choice.value, i == defaultIdx)
+        end
+        
+        combo.Paint = function(self, w, h)
+            draw.RoundedBox(6, 0, 0, w, h, C.Background)
+            
+            local _, value = self:GetSelected()
+            local displayText = ""
+            for _, choice in ipairs(choices) do
+                if choice.value == value then
+                    displayText = choice.label
+                    break
+                end
+            end
+            
+            draw.SimpleText(displayText, "StockMarket_TextFont", 10, h/2, C.TextPrimary, TEXT_ALIGN_LEFT, TEXT_ALIGN_CENTER)
+            
+            -- Dropdown arrow
+            draw.SimpleText("▼", "StockMarket_SmallFont", w - 10, h/2, C.TextSecondary, TEXT_ALIGN_RIGHT, TEXT_ALIGN_CENTER)
+        end
+        
+        return combo
+    end
+
+    local horizon = ModernComboBox(settingsRow, "Horizon:", {
+        {label = "30 minutes", value = 30},
+        {label = "1 hour", value = 60},
+        {label = "4 hours", value = 240},
+        {label = "24 hours", value = 1440}
+    }, 1)
+
+    local step = ModernComboBox(settingsRow, "Step:", {
+        {label = "1 minute", value = 60},
+        {label = "2 minutes", value = 120},
+        {label = "5 minutes", value = 300}
+    }, 2)
+
+    local function getHorizonMins()
+        local _, value = horizon:GetSelected()
+        return tonumber(value) or 30
+    end
+    
+    local function getStepSecs()
+        local _, value = step:GetSelected()
+        return tonumber(value) or 120
+    end
+
+    -- Right section: Time Controls
+    local timeControls = vgui.Create("DPanel", controlPanel)
+    timeControls:Dock(RIGHT)
+    timeControls:SetWide(controlPanel:GetWide() * 0.25 - 8)
+    timeControls:DockMargin(12, 12, 12, 12)
+    timeControls.Paint = nil
+
+    local sectionLabel3 = vgui.Create("DLabel", timeControls)
+    sectionLabel3:Dock(TOP)
+    sectionLabel3:SetTall(20)
+    sectionLabel3:SetFont("StockMarket_SmallFont")
+    sectionLabel3:SetTextColor(C.TextSecondary)
+    sectionLabel3:SetText("TIME TRAVEL")
+
+    local timeRow1 = vgui.Create("DPanel", timeControls)
+    timeRow1:Dock(TOP)
+    timeRow1:SetTall(28)
+    timeRow1:DockMargin(0, 4, 0, 0)
+    timeRow1.Paint = nil
+
+    local timeRow2 = vgui.Create("DPanel", timeControls)
+    timeRow2:Dock(TOP)
+    timeRow2:SetTall(28)
+    timeRow2:DockMargin(0, 4, 0, 0)
+    timeRow2.Paint = nil
+
+    local function TimeButton(parent, label, mins)
+        local btn = vgui.Create("DButton", parent)
+        btn:Dock(LEFT)
+        btn:SetWide((parent:GetWide() - 4) / 2)
+        btn:DockMargin(0, 0, 4, 0)
+        btn:SetText("")
+        btn.hovered = false
+        
+        btn.Paint = function(self, w, h)
+            local bgCol = self.hovered and C.PrimaryHover or C.Primary
+            draw.RoundedBox(6, 0, 0, w, h, bgCol)
+            draw.SimpleText(label, "StockMarket_SmallFont", w/2, h/2, color_white, TEXT_ALIGN_CENTER, TEXT_ALIGN_CENTER)
+        end
+        
+        btn.OnCursorEntered = function(self) self.hovered = true end
+        btn.OnCursorExited = function(self) self.hovered = false end
+        btn.DoClick = function()
+            if fr.cards then
+                for _, card in pairs(fr.cards) do
+                    if IsValid(card) and card._skip then
+                        card:_skip(mins)
                     end
                 end
-            end)
+            end
+        end
+        
+        return btn
+    end
+
+    TimeButton(timeRow1, "+5m", 5)
+    TimeButton(timeRow1, "+30m", 30)
+    TimeButton(timeRow2, "+2h", 120)
+    TimeButton(timeRow2, "+1d", 1440)
+
+    local resetBtn = vgui.Create("DButton", timeControls)
+    resetBtn:Dock(TOP)
+    resetBtn:SetTall(28)
+    resetBtn:DockMargin(0, 8, 0, 0)
+    resetBtn:SetText("")
+    resetBtn.hovered = false
+    
+    resetBtn.Paint = function(self, w, h)
+        local bgCol = self.hovered and Color(255, 255, 255, 30) or Color(255, 255, 255, 10)
+        draw.RoundedBox(6, 0, 0, w, h, bgCol)
+        draw.SimpleText("⟲ Reset All", "StockMarket_SmallFont", w/2, h/2, C.TextPrimary, TEXT_ALIGN_CENTER, TEXT_ALIGN_CENTER)
+    end
+    
+    resetBtn.OnCursorEntered = function(self) self.hovered = true end
+    resetBtn.OnCursorExited = function(self) self.hovered = false end
+    resetBtn.DoClick = function()
+        if fr.cards then
+            for _, card in pairs(fr.cards) do
+                if IsValid(card) and card._refresh then
+                    card:_refresh(true)
+                end
+            end
         end
     end
 
-    -- Scroll grid
+    -- Scroll container for cards
     local scroll = vgui.Create("DScrollPanel", fr)
     scroll:Dock(FILL)
-    scroll:DockMargin(8, 0, 8, 8)
+    scroll:DockMargin(16, 0, 16, 16)
+    
+    local sbar = scroll:GetVBar()
+    sbar:SetWide(10)
+    sbar.Paint = function(self, w, h)
+        draw.RoundedBox(5, 0, 0, w, h, Color(255, 255, 255, 10))
+    end
+    sbar.btnGrip.Paint = function(self, w, h)
+        draw.RoundedBox(5, 0, 0, w, h, C.Primary)
+    end
+    sbar.btnUp.Paint = function() end
+    sbar.btnDown.Paint = function() end
 
+    -- Grid layout for cards
     local grid = vgui.Create("DIconLayout", scroll)
     grid:Dock(FILL)
-    grid:SetSpaceX(8)
-    grid:SetSpaceY(8)
-    grid:DockMargin(0, 0, 2, 2)
+    grid:SetSpaceX(16)
+    grid:SetSpaceY(16)
+    grid:DockMargin(0, 0, 0, 0)
 
     fr.cards = fr.cards or {}
 
+    -- Dynamic column calculation
     local function computeColumns(w)
-        if w >= 1180 then return 3 end
-        if w >= 820 then return 2 end
+        if w >= 1400 then return 3 end
+        if w >= 900 then return 2 end
         return 1
     end
+    
     local function applyCardWidths()
         if not IsValid(fr) or not IsValid(grid) then return end
-        local w = fr:GetWide() - 32
+        local w = fr:GetWide() - 48
         local cols = computeColumns(w)
-        local cw = math.max(360, math.floor((w - (grid:GetSpaceX() * (cols - 1))) / cols))
+        local cw = math.max(400, math.floor((w - (grid:GetSpaceX() * (cols - 1))) / cols))
         for _, card in pairs(fr.cards) do
             if IsValid(card) then card:SetWide(cw) end
         end
     end
-    fr.OnSizeChanged = function() timer.Simple(0, applyCardWidths) end
-
-    -- Top bar overlay used by cards
-    local function DrawCameraChrome(w, h, tkr, title, pills)
-        draw.RoundedBox(6, 8, 8, w - 16, 26, Color(0, 0, 0, 90))
-        draw.SimpleText(tostring(tkr or "CAM"), "StockMarket_TickerFont", 16, 21, color_white, TEXT_ALIGN_LEFT, TEXT_ALIGN_CENTER)
-        if title and title ~= "" then
-            draw.SimpleText(" • " .. title, "StockMarket_SmallFont", 62, 21, Color(220, 220, 220), TEXT_ALIGN_LEFT, TEXT_ALIGN_CENTER)
-        end
-        -- Right rail pills, no overlaps
-        local railX = w - 12
-        local function pill(text, bg, fg)
-            surface.SetFont("StockMarket_SmallFont")
-            local tw, th = surface.GetTextSize(text or "")
-            local pw, ph = tw + 12, th + 6
-            railX = railX - pw - 6
-            draw.RoundedBox(6, railX, 21 - ph/2, pw, ph, bg or Color(55, 65, 81))
-            draw.SimpleText(text or "OK", "StockMarket_SmallFont", railX + pw/2, 21, fg or color_white, TEXT_ALIGN_CENTER, TEXT_ALIGN_CENTER)
-        end
-        if pills then
-            for i = 1, #pills do
-                local p = pills[i]
-                pill(p.text or "OK", p.bg or Color(55, 65, 81), p.fg or color_white)
-            end
+    
+    fr.OnSizeChanged = function()
+        timer.Simple(0, applyCardWidths)
+        if IsValid(closeBtn) then
+            closeBtn:SetPos(fr:GetWide() - 50, 20)
         end
     end
 
-    -- Add ticker card
+    -- IMPROVED TICKER CARD
     function fr:AddTickerCard(t)
         local key = t.stockPrefix or t.stockName or ("CAM_" .. math.random(1000,9999))
         if IsValid(self.cards[key]) then
@@ -318,129 +404,169 @@ local function AdminPredictiveMonitor(C)
         end
 
         local card = vgui.Create("DPanel")
-        card:SetSize(380, 290)
+        card:SetSize(420, 340)
         grid:Add(card)
         self.cards[key] = card
 
         card._params = t
         card._offsetMins = 0
 
-        -- Clean card paint: one-pass
+        -- Modern card design
         card.Paint = function(self, w, h)
             draw.RoundedBox(8, 0, 0, w, h, C.BackgroundLight)
+            draw.RoundedBox(8, 0, 0, w, 50, Color(32, 36, 45))
+            
             local p = card._params or {}
-            local title = string.format("%s | Drift %.3f • Vol %.2f",
-                p.stockName or "Stock",
-                tonumber(p.drift or 0) or 0,
-                tonumber(p.volatility or 1) or 1
+            
+            draw.SimpleText(
+                p.stockPrefix or "TICK",
+                "StockMarket_TitleFont",
+                16, 14,
+                C.Primary,
+                TEXT_ALIGN_LEFT, TEXT_ALIGN_TOP
             )
+            
+            draw.SimpleText(
+                p.stockName or "Stock",
+                "StockMarket_SmallFont",
+                16, 38,
+                C.TextSecondary,
+                TEXT_ALIGN_LEFT, TEXT_ALIGN_TOP
+            )
+            
             local riskInfo = StockMarket.UI.Admin.ComputeQuickStats and StockMarket.UI.Admin.ComputeQuickStats(
-                tonumber(p.newStockValue or 1) or 1, tonumber(p.drift or 0) or 0, tonumber(p.volatility or 1) or 1, 30
+                tonumber(p.newStockValue or 1) or 1,
+                tonumber(p.drift or 0) or 0,
+                tonumber(p.volatility or 1) or 1,
+                30
             ) or { riskScore = 0 }
+            
             local risk = riskInfo.riskScore or 0
-            local pill
+            local riskLabel, riskCol
             if risk >= 25 then
-                pill = { text = "HIGH", bg = StockMarket.UI.Colors.Danger }
+                riskLabel, riskCol = "HIGH RISK", StockMarket.UI.Colors.Danger
             elseif risk >= 15 then
-                pill = { text = "MED", bg = StockMarket.UI.Colors.Warning, fg = Color(30,30,30) }
+                riskLabel, riskCol = "MED RISK", StockMarket.UI.Colors.Warning
             else
-                pill = { text = "LOW", bg = StockMarket.UI.Colors.Success }
+                riskLabel, riskCol = "LOW RISK", StockMarket.UI.Colors.Success
             end
-            DrawCameraChrome(w, h, p.stockPrefix or "CAM", title, { pill })
-
-            -- Footer bar background
-            draw.RoundedBox(6, 8, h - 30, w - 16, 22, Color(0,0,0,65))
+            
+            surface.SetFont("StockMarket_SmallFont")
+            local tw, th = surface.GetTextSize(riskLabel)
+            local badgeW, badgeH = tw + 16, th + 8
+            local badgeX = w - badgeW - 16
+            draw.RoundedBox(6, badgeX, 12, badgeW, badgeH, riskCol)
+            draw.SimpleText(riskLabel, "StockMarket_SmallFont", badgeX + badgeW/2, 12 + badgeH/2, color_white, TEXT_ALIGN_CENTER, TEXT_ALIGN_CENTER)
         end
 
-        -- Minimal buttons (top-right)
-        local function mkBtn(iconText, tip, onClick, xOff)
-            local b = vgui.Create("DButton", card)
-            b:SetText("")
-            b:SetSize(24, 24)
-            b:SetPos(card:GetWide() - xOff, 8)
-            b.Paint = function(self, w, h)
-                draw.RoundedBox(6, 0, 0, w, h, Color(0,0,0,120))
-                draw.SimpleText(iconText, "StockMarket_SmallFont", w/2, h/2, Color(255,255,255), TEXT_ALIGN_CENTER, TEXT_ALIGN_CENTER)
+        local btnContainer = vgui.Create("DPanel", card)
+        btnContainer:SetPos(0, 0)
+        btnContainer:SetSize(card:GetWide(), 50)
+        btnContainer.Paint = nil
+
+        local function ModernButton(parent, icon, tooltip, onClick, xPos)
+            local btn = vgui.Create("DButton", parent)
+            btn:SetText("")
+            btn:SetSize(32, 32)
+            btn:SetPos(xPos, 9)
+            btn.hovered = false
+            
+            btn.Paint = function(self, w, h)
+                local bgCol = self.hovered and Color(255, 255, 255, 40) or Color(255, 255, 255, 15)
+                draw.RoundedBox(6, 0, 0, w, h, bgCol)
+                draw.SimpleText(icon, "StockMarket_ButtonFont", w/2, h/2, color_white, TEXT_ALIGN_CENTER, TEXT_ALIGN_CENTER)
             end
-            b.DoClick = onClick
-            return b
+            
+            btn.OnCursorEntered = function(self) self.hovered = true end
+            btn.OnCursorExited = function(self) self.hovered = false end
+            btn.DoClick = onClick
+            
+            return btn
         end
 
-        card._btnClose = mkBtn("×", "Remove", function()
+        card._btnClose = ModernButton(btnContainer, "×", "Remove", function()
             if IsValid(card) then
                 grid:RemoveItem(card)
-                fr.cards[t.stockPrefix or t.stockName] = nil
+                fr.cards[key] = nil
                 card:Remove()
             end
-        end, 32)
+        end, card:GetWide() - 44)
 
-        card._btnPop  = mkBtn("⤢", "Popout", function()
+        card._btnPop = ModernButton(btnContainer, "⤢", "Popout", function()
             local pop = vgui.Create("DFrame")
-            pop:SetSize(math.min(ScrW() * 0.7, 900), math.min(ScrH() * 0.7, 600))
+            pop:SetSize(math.min(ScrW() * 0.75, 1000), math.min(ScrH() * 0.75, 700))
             pop:Center()
             pop:SetTitle("")
             pop:MakePopup()
+            
             pop.Paint = function(self, w, h)
                 draw.RoundedBox(8, 0, 0, w, h, C.Background)
-                DrawCameraChrome(w, 60, t.stockPrefix or "CAM", (t.stockName or "Stock"), nil)
+                draw.RoundedBox(8, 8, 8, w - 16, 60, C.BackgroundLight)
+                draw.SimpleText(t.stockPrefix or "TICK", "StockMarket_TitleFont", 24, 24, C.Primary)
+                draw.SimpleText(t.stockName or "Stock", "StockMarket_TextFont", 24, 48, C.TextSecondary)
             end
 
             local holder = vgui.Create("DPanel", pop)
             holder:Dock(FILL)
-            holder:DockMargin(12, 70, 12, 12)
-            local c = StockMarket.UI.Lib:Chart(holder)
+            holder:DockMargin(16, 80, 16, 16)
+            holder.Paint = function(self, w, h)
+                draw.RoundedBox(8, 0, 0, w, h, C.BackgroundLight)
+            end
+            
+            local chartHolder = vgui.Create("DPanel", holder)
+            chartHolder:Dock(FILL)
+            chartHolder:DockMargin(12, 12, 12, 12)
+            chartHolder.Paint = nil
+            
+            local c = StockMarket.UI.Lib:Chart(chartHolder)
             c:Dock(FILL)
             c:SetData(StockMarket.UI.Admin.BuildPredictionSeries({
                 startPrice = tonumber(t.newStockValue or 1) or 1,
                 drift = tonumber(t.drift or 0) or 0,
                 sigma = tonumber(t.volatility or 1) or 1,
-                horizonMins = 120,
-                stepSecs = 120
+                horizonMins = getHorizonMins(),
+                stepSecs = getStepSecs()
             }))
-        end, 62)
+        end, card:GetWide() - 82)
 
-        card.PerformLayout = function(self, w, h)
-            if IsValid(self._btnClose) then self._btnClose:SetPos(w - 32, 8) end
-            if IsValid(self._btnPop)   then self._btnPop:SetPos(w - 62, 8) end
+        local chartSection = vgui.Create("DPanel", card)
+        chartSection:SetPos(12, 62)
+        chartSection:SetSize(card:GetWide() - 24, 200)
+        chartSection.Paint = function(self, w, h)
+            draw.RoundedBox(6, 0, 0, w, h, C.Background)
         end
 
-        -- Chart holder
-        local chartHolder = vgui.Create("DPanel", card)
-        chartHolder:SetPos(12, 46)
-        chartHolder:SetSize(card:GetWide() - 24, 165)
+        local chartHolder = vgui.Create("DPanel", chartSection)
+        chartHolder:Dock(FILL)
+        chartHolder:DockMargin(8, 8, 8, 8)
         chartHolder.Paint = nil
-        chartHolder.PerformLayout = function(self, w, h)
-            if IsValid(self.chart) then self.chart:SetSize(w, h) end
-        end
 
         local chart = StockMarket.UI.Lib:Chart(chartHolder)
         chart:Dock(FILL)
         chartHolder.chart = chart
 
-        -- Footer
-        local footer = vgui.Create("DPanel", card)
-        footer:Dock(BOTTOM)
-        footer:SetTall(64)
-        footer:DockMargin(12, 6, 12, 10)
-        footer.Paint = function(self, w, h)
+        local infoPanel = vgui.Create("DPanel", card)
+        infoPanel:SetPos(12, 274)
+        infoPanel:SetSize(card:GetWide() - 24, 54)
+        infoPanel.Paint = function(self, w, h)
             draw.RoundedBox(6, 0, 0, w, h, C.Background)
+            
             local p = card._params
-            draw.SimpleText(string.format("Horizon: %dm  • Step: %ds", getHorizonMins(), getStepSecs()), "StockMarket_SmallFont", 10, h - 18, C.TextSecondary)
-            draw.SimpleText(tostring(p.stockName or "Stock"), "StockMarket_SmallFont", 10, 10, C.TextSecondary)
-
-            local s = StockMarket.UI.Admin.ComputeQuickStats and StockMarket.UI.Admin.ComputeQuickStats(
-                tonumber(p.newStockValue or 1) or 1, tonumber(p.drift or 0) or 0, tonumber(p.volatility or 1) or 1, getHorizonMins()
-            ) or { riskScore = 0 }
-            local risk = s.riskScore or 0
-            local label, col
-            if risk >= 25 then label, col = "HIGH", StockMarket.UI.Colors.Danger
-            elseif risk >= 15 then label, col = "MED", StockMarket.UI.Colors.Warning
-            else label, col = "LOW", StockMarket.UI.Colors.Success end
-            surface.SetFont("StockMarket_SmallFont")
-            local tw, th = surface.GetTextSize(label)
-            local pw, ph = tw + 12, th + 6
-            draw.RoundedBox(6, w - pw - 10, 8, pw, ph, col)
-            draw.SimpleText(label, "StockMarket_SmallFont", w - pw/2 - 10, 8 + ph/2, color_white, TEXT_ALIGN_CENTER, TEXT_ALIGN_CENTER)
+            
+            draw.SimpleText("Drift: " .. string.format("%.4f", tonumber(p.drift or 0) or 0), "StockMarket_SmallFont", 12, 10, C.TextSecondary)
+            draw.SimpleText("Volatility: " .. string.format("%.2f", tonumber(p.volatility or 1) or 1), "StockMarket_SmallFont", 12, 28, C.TextSecondary)
+            
+            draw.SimpleText("Horizon: " .. getHorizonMins() .. "m", "StockMarket_SmallFont", w - 12, 10, C.TextSecondary, TEXT_ALIGN_RIGHT)
+            draw.SimpleText("Step: " .. getStepSecs() .. "s", "StockMarket_SmallFont", w - 12, 28, C.TextSecondary, TEXT_ALIGN_RIGHT)
+            
+            local currentPrice = tonumber(p.newStockValue or 1) or 1
+            draw.SimpleText(
+                StockMarket.Config.CurrencySymbol .. string.Comma(math.Round(currentPrice, 2)),
+                "StockMarket_SubtitleFont",
+                w/2, h/2,
+                C.Primary,
+                TEXT_ALIGN_CENTER, TEXT_ALIGN_CENTER
+            )
         end
 
         function card:_refresh(resetOffset)
@@ -457,8 +583,7 @@ local function AdminPredictiveMonitor(C)
             }
             local series = StockMarket.UI.Admin.BuildPredictionSeries and StockMarket.UI.Admin.BuildPredictionSeries(cfg) or {}
             if chart.SetData then chart:SetData(series) end
-            footer:InvalidateLayout(true)
-            chartHolder:InvalidateLayout(true)
+            infoPanel:InvalidateLayout(true)
         end
 
         function card:_skip(mins)
@@ -472,17 +597,32 @@ local function AdminPredictiveMonitor(C)
     end
 
     horizon.OnSelect = function()
-        if not fr.cards then return end
-        for _, card in pairs(fr.cards) do if IsValid(card) then card:_refresh() end end
+        if fr.cards then
+            for _, card in pairs(fr.cards) do
+                if IsValid(card) and card._refresh then
+                    card:_refresh()
+                end
+            end
+        end
     end
+
     step.OnSelect = function()
-        if not fr.cards then return end
-        for _, card in pairs(fr.cards) do if IsValid(card) then card:_refresh() end end
+        if fr.cards then
+            for _, card in pairs(fr.cards) do
+                if IsValid(card) and card._refresh then
+                    card:_refresh()
+                end
+            end
+        end
     end
 
     timer.Simple(0, applyCardWidths)
     return fr
 end
+
+-- ========================================
+-- HELPER FUNCTIONS
+-- ========================================
 
 local function IconButton(parent, iconMat, tip, onClick)
     local btn = vgui.Create("DButton", parent)
@@ -574,8 +714,9 @@ local function CategoryHeader(parent, sectorKey, sectorData, C, onAddTicker, onE
 
     local rail = vgui.Create("Panel", pnl)
     rail:Dock(RIGHT)
-    rail:SetWide(ACTION_RAIL_W)
+    rail:SetWide(120) 
     rail:DockMargin(4, PAD_Y, PAD_X, PAD_Y)
+    rail.Paint = nil
 
     local btnAdd  = IconButton(rail, ICONS.add,   "Add Stock", function() onAddTicker(sectorKey) end)
     local btnEdit = IconButton(rail, ICONS.edit,  "Edit Category", function() onEditCategory(sectorKey, sectorData) end)
@@ -592,9 +733,9 @@ local function CategoryHeader(parent, sectorKey, sectorData, C, onAddTicker, onE
         )
     end)
 
-    btnDel:Dock(RIGHT);  btnDel:DockMargin(6,0,0,0)
-    btnEdit:Dock(RIGHT); btnEdit:DockMargin(6,0,0,0)
-    btnAdd:Dock(RIGHT)
+    btnDel:SetPos(88, 0)
+    btnEdit:SetPos(44, 0)
+    btnAdd:SetPos(0, 0)
 
     return pnl
 end
@@ -652,8 +793,9 @@ local function StockRow(parent, sectorKey, t, C, onEdit, onDelete)
 
     local rail = vgui.Create("Panel", row)
     rail:Dock(RIGHT)
-    rail:SetWide(ACTION_RAIL_W)
+    rail:SetWide(120)
     rail:DockMargin(4, PAD_Y, PAD_X, PAD_Y)
+    rail.Paint = nil
 
     local btnDel   = IconButton(rail, ICONS.delete, "Delete", function() onDelete(sectorKey, t) end)
     local btnEdit  = IconButton(rail, ICONS.edit,   "Edit",   function() onEdit(sectorKey, t) end)
@@ -662,9 +804,14 @@ local function StockRow(parent, sectorKey, t, C, onEdit, onDelete)
         mon:AddTickerCard(t)
     end)
 
-    btnDel:Dock(RIGHT);  btnDel:DockMargin(8,0,0,0)
-    btnEdit:Dock(RIGHT); btnEdit:DockMargin(8,0,0,0)
-    btnPrev:Dock(RIGHT)
+    btnDel:SetPos(88, 0)
+    btnEdit:SetPos(44, 0)  
+    btnPrev:SetPos(0, 0)
+
+    row._sectorKey = sectorKey
+    row._tickerPrefix = t.stockPrefix
+
+    row:Droppable(DRAG_NAME)
 
     return row
 end
@@ -765,17 +912,16 @@ end
 
 function StockMarket.UI.Admin.BuildPredictionSeries(params)
     local p0 = math.max(0.01, tonumber(params.startPrice) or 1)
-    local mu = tonumber(params.drift) or 0           -- same units you pass in
+    local mu = tonumber(params.drift) or 0
     local sigma = tonumber(params.sigma) or 1
     local minTickV = tonumber(params.minTick)
     local maxTickV = tonumber(params.maxTick)
     local horizonMins = math.max(1, tonumber(params.horizonMins) or 60)
     local stepSecs = math.max(1, tonumber(params.stepSecs) or 60)
 
-    -- Derive a per-step percent cap from the live engine’s daily cap.
     local dailyCap = tonumber(StockMarket.Config.PriceGen and StockMarket.Config.PriceGen.maxDailyMoveCap) or 0.25
     local stepsPerDay = math.max(1, math.floor((24*60*60) / stepSecs))
-    local perStepCap = dailyCap / stepsPerDay  -- approximately distributes the daily cap across steps
+    local perStepCap = dailyCap / stepsPerDay
 
     local now = os.time()
     local steps = math.floor((horizonMins * 60) / stepSecs)
@@ -785,28 +931,22 @@ function StockMarket.UI.Admin.BuildPredictionSeries(params)
     table.insert(series, {timestamp = now - steps * stepSecs, open = price, high = price, low = price, close = price, volume = 0})
 
     for i = 1, steps do
-        -- Triangular-ish noise (sum of uniform) like your current preview
         local rand = (math.Rand(-1,1) + math.Rand(-1,1) + math.Rand(-1,1)) / 3
 
-        -- Base move: additive drift + proportional volatility
         local move
         if minTickV and maxTickV then
-            -- If explicit ticks are set, keep using them (bounds in absolute price units)
             local tickSpan = (maxTickV - minTickV)
             move = math.Clamp(rand * sigma * tickSpan, minTickV, maxTickV) + (mu * tickSpan)
         else
-            -- Otherwise use proportional move to current price (like a % step)
             move = price * ((mu) + (sigma * 0.01) * rand)
         end
 
         local proposed = price + move
 
-        -- Per-step clamp to emulate daily move cap
         local maxUp = price * (1 + perStepCap)
         local maxDn = price * (1 - perStepCap)
         proposed = math.min(math.max(proposed, maxDn), maxUp)
 
-        -- Enforce minimum price
         proposed = math.max(0.01, proposed)
 
         local ts = now - (steps - i) * stepSecs
@@ -837,147 +977,50 @@ function StockMarket.UI.Admin._OpenTickerDialog(mode, sectorKey, t, C)
     fr:Center(); fr:SetTitle(""); fr:MakePopup()
     fr.Paint = function(self,w,h) draw.RoundedBox(8,0,0,w,h, Color(28,31,38)) end
 
-    local container = vgui.Create("DPanel", fr)
-    container:Dock(FILL)
-    container:DockMargin(10,10,10,50)
-    container.Paint = nil
+    local form = vgui.Create("DPanel", fr)
+    form:Dock(FILL); form:DockMargin(10,10,10,50); form.Paint = nil
 
-    local form = vgui.Create("DPanel", container)
-    form:Dock(LEFT)
-    form:SetWide(480)
-    form.Paint = nil
-    form:DockMargin(0,0,10,0)
-
-    local right = vgui.Create("DPanel", container)
-    right:Dock(FILL)
-    right.Paint = function(self,w,h)
-        draw.RoundedBox(8, 0, 0, w, h, C.BackgroundLight)
-        draw.SimpleText("Predicted Path (Preview)", "StockMarket_SmallFont", 12, 8, C.TextSecondary)
-    end
-    right:DockPadding(10, 26, 10, 10)
-
-    local function InputRow(parent, label, default)
-        local row = vgui.Create("DPanel", parent)
-        row:Dock(TOP); row:SetTall(42); row:DockMargin(0, 4, 0, 6); row.Paint = nil
-
-        local lbl = vgui.Create("DLabel", row)
-        lbl:Dock(LEFT); lbl:SetWide(170)
-        lbl:SetText(label); lbl:SetFont("StockMarket_TextFont")
-        lbl:SetTextColor(Color(220,220,220)); lbl:SetContentAlignment(4)
-
-        local ent = vgui.Create("DTextEntry", row)
-        ent:Dock(FILL); ent:SetFont("StockMarket_TextFont")
-        ent:SetText(default or ""); ent:SetTextColor(Color(255,255,255))
-        ent:SetDrawBackground(true); ent:SetPaintBackground(true)
-        ent.Paint = function(self, w, h)
-            draw.RoundedBox(6, 0, 0, w, h, Color(35,38,46))
-            self:DrawTextEntryText(Color(255,255,255), Color(220,50,50), Color(255,255,255))
-        end
-
-        return ent
-    end
-
-    local name   = InputRow(form, "Stock Name", t and t.stockName or "")
-    local prefix = InputRow(form, "Ticker Prefix", t and t.stockPrefix or "")
-    local float  = InputRow(form, "Shares Outstanding (float)", t and tostring(t.marketStocks or 0) or "0")
-    local start  = InputRow(form, "Starting Price", t and tostring(t.newStockValue or 1) or "1")
-    local drift  = InputRow(form, "Drift (e.g., 0.008)", t and tostring(t.drift or 0) or "0")
-    local vol    = InputRow(form, "Volatility (e.g., 0.8)", t and tostring(t.volatility or 1) or "1")
-    local minT   = InputRow(form, "Min Tick (optional)", t and tostring(t.minTick or "") or "")
-    local maxT   = InputRow(form, "Max Tick (optional)", t and tostring(t.maxTick or "") or "")
-
-    local diff   = InputRow(form, "Difficulty", t and tostring(t.stockDifficulty or 2000) or "2000")
+    local name = InputRow(form, "Stock Name", t and t.stockName or "")
+    local prefix = InputRow(form, "Stock Prefix (Ticker)", t and t.stockPrefix or "")
+    local market = InputRow(form, "Market Stocks", t and tostring(t.marketStocks or 1000) or "1000")
+    local value = InputRow(form, "Stock Value", t and tostring(t.newStockValue or 100) or "100")
+    local minTick = InputRow(form, "Min Tick", t and tostring(t.minTick or 0.01) or "0.01")
+    local maxTick = InputRow(form, "Max Tick", t and tostring(t.maxTick or 5) or "5")
+    local drift = InputRow(form, "Drift", t and tostring(t.drift or 0) or "0")
+    local vol = InputRow(form, "Volatility", t and tostring(t.volatility or 1) or "1")
+    local diff = InputRow(form, "Difficulty", t and tostring(t.stockDifficulty or 1) or "1")
 
     local enabled = vgui.Create("DCheckBoxLabel", form)
     enabled:Dock(TOP); enabled:DockMargin(170,6,0,0); enabled:SetText("Enabled")
     enabled:SetChecked(t and t.enabled ~= false or true)
     enabled:SetTextColor(Color(220,220,220)); enabled:SetFont("StockMarket_TextFont")
 
-    local chartContainer = vgui.Create("DPanel", right)
-    chartContainer:Dock(FILL)
-    chartContainer.Paint = nil
-
-    local chart = StockMarket.UI.Lib:Chart(chartContainer)
-    chart:Dock(FILL)
-
-    local function getNumberOrDefault(str, def)
-        local n = tonumber(str)
-        if n == nil or n ~= n or n == math.huge or n == -math.huge then return def end
-        return n
-    end
-
-    local function refreshChart()
-        if not IsValid(chart) then return end
-        local startV = getNumberOrDefault(start:GetValue(), t and tonumber(t.newStockValue) or 1)
-        local driftV = getNumberOrDefault(drift:GetValue(), t and tonumber(t.drift) or 0)
-        local volV   = getNumberOrDefault(vol:GetValue(),   t and tonumber(t.volatility) or 1)
-        local minTV  = tonumber(minT:GetValue())
-        local maxTV  = tonumber(maxT:GetValue())
-        local params = {
-            startPrice  = math.max(0.01, startV),
-            drift       = driftV,
-            sigma       = volV,
-            minTick     = minTV,
-            maxTick     = maxTV,
-            horizonMins = 60,
-            stepSecs    = 120
-        }
-        local series = {}
-        if StockMarket.UI.Admin.BuildPredictionSeries then
-            series = StockMarket.UI.Admin.BuildPredictionSeries(params) or {}
-        end
-        if chart.SetData then
-            chart:SetData(series)
-        elseif chart.LoadHistory then
-            chart:LoadHistory()
-        end
-        if chart.RebuildAxes then chart:RebuildAxes() end
-    end
-
-    local function bindUpdate(entry)
-        entry.OnChange     = refreshChart
-        entry.OnEnter      = refreshChart
-        entry.OnLoseFocus  = refreshChart
-    end
-    bindUpdate(start)
-    bindUpdate(drift)
-    bindUpdate(vol)
-    bindUpdate(minT)
-    bindUpdate(maxT)
-
-    timer.Simple(0, refreshChart)
-
     local save = SmallButton(fr, "Save", {Primary=Color(220,38,38),PrimaryHover=Color(248,113,113)}, function()
         local payload = {
-            sectorKey = sectorKey,
             stockName = name:GetValue(),
             stockPrefix = prefix:GetValue(),
-            marketStocks = tonumber(float:GetValue()) or 0,
-            newStockValue = tonumber(start:GetValue()) or 1,
-            minTick = tonumber(minT:GetValue()) or (t and t.minTick) or nil,
-            maxTick = tonumber(maxT:GetValue()) or (t and t.maxTick) or nil,
+            marketStocks = tonumber(market:GetValue()) or 1000,
+            newStockValue = tonumber(value:GetValue()) or 100,
+            minTick = tonumber(minTick:GetValue()) or 0.01,
+            maxTick = tonumber(maxTick:GetValue()) or 5,
             drift = tonumber(drift:GetValue()) or 0,
             volatility = tonumber(vol:GetValue()) or 1,
-            stockDifficulty = tonumber(diff:GetValue()) or 2000,
+            stockDifficulty = tonumber(diff:GetValue()) or 1,
             enabled = enabled:GetChecked()
         }
-        if mode == "edit" and t and t.stockPrefix then payload.oldPrefix = t.stockPrefix end
-
         net.Start("StockMarket_Admin_SaveTicker")
-        net.WriteString(payload.sectorKey or "")
+        net.WriteString(sectorKey or "")
         net.WriteString(payload.stockName or "")
         net.WriteString(payload.stockPrefix or "")
-        net.WriteUInt(tonumber(payload.marketStocks or 0) or 0, 32)
-        net.WriteFloat(tonumber(payload.newStockValue or 0) or 0)
-        net.WriteFloat(tonumber(payload.minTick or 0) or 0)
-        net.WriteFloat(tonumber(payload.maxTick or 0) or 0)
-        net.WriteFloat(tonumber(payload.drift or 0) or 0)
-        net.WriteFloat(tonumber(payload.volatility or 0) or 0)
-        net.WriteUInt(tonumber(payload.stockDifficulty or 0) or 0, 32)
-        net.WriteBool(payload.enabled ~= false)
-        net.WriteString(payload.oldPrefix or "")
+        net.WriteUInt(payload.marketStocks, 32)
+        net.WriteFloat(payload.newStockValue)
+        net.WriteFloat(payload.minTick)
+        net.WriteFloat(payload.maxTick)
+        net.WriteFloat(payload.drift)
+        net.WriteFloat(payload.volatility)
+        net.WriteUInt(payload.stockDifficulty, 32)
+        net.WriteBool(payload.enabled)
         net.SendToServer()
-
         fr:Close()
         timer.Simple(0.15, function()
             net.Start("StockMarket_Admin_GetState")
@@ -987,7 +1030,10 @@ function StockMarket.UI.Admin._OpenTickerDialog(mode, sectorKey, t, C)
     save:Dock(BOTTOM); save:DockMargin(10,0,10,10); save:SetTall(38)
 end
 
--- Main
+-- ========================================
+-- MAIN STOCKS VIEW
+-- ========================================
+
 function StockMarket.UI.Admin.Stocks(content, C)
     local top = vgui.Create("DPanel", content)
     top:Dock(TOP)
